@@ -27,8 +27,6 @@ const aiTools = aiToolsRaw.map(tool => ({
 
 // DOM Elements
 const aiToolName = document.getElementById("toolsCont");
-const shortcuts = document.getElementById("shortcutsContainer");
-const aiToolsIcon = document.getElementById("aiToolsIcon");
 const aiToolsSettingsModal = document.getElementById("aiToolsSettingsModal");
 const aiToolsSettingsOverlay = document.getElementById("aiToolsSettingsOverlay");
 const aiToolsForm = document.getElementById("aiToolsForm");
@@ -292,74 +290,31 @@ function closeAIToolsSettings() {
     aiToolsSettingsOverlay.style.display = "none";
 }
 
-// Function to toggle AI Tools panel
-let isAIToolsTransitioning = false;
-
-function toggleAITools(event) {
-    if (isAIToolsTransitioning) return;
-    isAIToolsTransitioning = true;
-
-    const shortcutsCheckbox = document.getElementById("shortcutsCheckbox");
-    const isAIToolVisible = aiToolName.style.display === "flex";
-
-    // Prevent outside click handler from triggering
-    if (event) event.stopPropagation();
-
-    if (isAIToolVisible) {
-        // Hide AI Tool panel
-        if (shortcutsCheckbox.checked) {
-            shortcuts.style.display = "flex";
-        } else {
-            shortcuts.style.display = "none";
+// Show the tool name as a native tooltip since the rail is icon-only
+function setAIToolTitles() {
+    aiToolName.querySelectorAll("a").forEach(link => {
+        const toolId = link.querySelector(".tLabel")?.id;
+        const tool = aiTools.find(t => t.id === toolId);
+        if (tool) {
+            link.title = tool.label;
+            link.setAttribute("aria-label", tool.label);
         }
+    });
+}
 
-        aiToolName.style.opacity = "0";
-        aiToolName.style.gap = "0";
-        aiToolName.style.transform = "translateX(-100%)";
-
-        setTimeout(() => {
-            aiToolName.style.display = "none";
-            isAIToolsTransitioning = false;
-        }, 500);
-    } else {
-        // Show AI Tool panel
-        shortcuts.style.display = "none";
-        aiToolName.style.display = "flex";
-
-        requestAnimationFrame(() => {
-            aiToolName.style.opacity = "1";
-            aiToolName.style.transform = "translateX(0)";
-        });
-
-        setTimeout(() => {
-            aiToolName.style.gap = "12px";
-            isAIToolsTransitioning = false;
-        }, 300);
-    }
+function setAIToolsVisibility(isVisible) {
+    aiToolsCont.style.display = isVisible ? "flex" : "none";
+    aiToolsEditField.classList.toggle("inactive", !isVisible);
 }
 
 // Event Listeners
 document.addEventListener("DOMContentLoaded", function () {
     // Apply saved settings
     applyAIToolsSettings();
+    setAIToolTitles();
 
-    // Allow horizontal scrolling with the mouse wheel
-    aiToolsCont.addEventListener("wheel", (event) => {
-        // Check if the container is scrollable in x-axis
-        if (aiToolsCont.scrollWidth > aiToolsCont.clientWidth) {
-            if (event.deltaY !== 0) {
-                event.preventDefault(); // Prevent vertical scrolling
-                // Apply the deltaY from the wheel event to horizontal scroll
-                aiToolsCont.scrollLeft += event.deltaY;
-            }
-        }
-    }, { passive: false });
-
-    // AI Tools icon click handler
-    aiToolsIcon.addEventListener("click", toggleAITools);
-
-    // AI Tools icon right-click handler
-    aiToolsIcon.addEventListener("contextmenu", function (e) {
+    // Right-click on the rail opens the AI Tools settings
+    aiToolsCont.addEventListener("contextmenu", function (e) {
         e.preventDefault();
         e.stopPropagation();
         showAIToolsSettings();
@@ -474,33 +429,14 @@ document.addEventListener("DOMContentLoaded", function () {
     // Handle checkbox state for AI Tools visibility
     const aiToolsCheckbox = document.getElementById("aiToolsCheckbox");
 
+    // Enabled by default so the rail is visible on first load
+    const savedAIState = localStorage.getItem("aiToolsCheckboxState");
+    aiToolsCheckbox.checked = savedAIState === null ? true : savedAIState === "checked";
+    setAIToolsVisibility(aiToolsCheckbox.checked);
+
     aiToolsCheckbox.addEventListener("change", function () {
         saveCheckboxState("aiToolsCheckboxState", aiToolsCheckbox);
-        if (aiToolsCheckbox.checked) {
-            aiToolsCont.style.display = "flex";
-            saveDisplayStatus("aiToolsDisplayStatus", "flex");
-            aiToolsEditField.classList.remove("inactive");
-        } else {
-            aiToolsCont.style.display = "none";
-            saveDisplayStatus("aiToolsDisplayStatus", "none");
-            aiToolsEditField.classList.add("inactive");
-        }
-    });
-
-    // Load saved state
-    loadCheckboxState("aiToolsCheckboxState", aiToolsCheckbox);
-    loadDisplayStatus("aiToolsDisplayStatus", aiToolsCont);
-    if (aiToolsCheckbox.checked) {
-        aiToolsEditField.classList.remove("inactive");
-    } else {
-        aiToolsEditField.classList.add("inactive");
-    }
-
-    // Collapse when clicking outside toolsCont (but not if settings modal is open)
-    document.addEventListener("click", (event) => {
-        const isSettingsModalOpen = aiToolsSettingsModal.style.display === "block";
-        if (!aiToolName.contains(event.target) && aiToolName.style.display === "flex" && !isSettingsModalOpen) {
-            toggleAITools();
-        }
+        setAIToolsVisibility(aiToolsCheckbox.checked);
+        saveDisplayStatus("aiToolsDisplayStatus", aiToolsCheckbox.checked ? "flex" : "none");
     });
 });
